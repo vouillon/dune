@@ -115,6 +115,7 @@ end = struct
           ; foreign_archives
           ; Lib_info.eval_native_archives_exn lib ~modules
           ; Lib_info.jsoo_runtime lib
+          ; Lib_info.wasmoo_runtime lib
           ]))
       (List.rev_map ~f:(fun f -> Section.Libexec, f) (Lib_info.plugins lib).native)
   ;;
