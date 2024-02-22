@@ -19,6 +19,7 @@ val build_cm
   :  Super_context.t
   -> dir:Path.Build.t
   -> in_context:Js_of_ocaml.In_context.t
+  -> ctarget:Js_of_ocaml.Target.t
   -> src:Path.t
   -> obj_dir:Path.Build.t Obj_dir.t
   -> config:Config.t option
@@ -40,6 +41,7 @@ val setup_separate_compilation_rules : Super_context.t -> string list -> unit Me
 val runner : string
 val js_of_ocaml_runtest_alias : dir:Path.Build.t -> Alias.Name.t Memo.t
 val jsoo_env : dir:Path.Build.t -> string list Action_builder.t Js_of_ocaml.Env.t Memo.t
+val iter_compilation_targets : f:(Js_of_ocaml.Target.t -> unit Memo.t) -> unit Memo.t
 
 val js_of_ocaml_compilation_mode
   :  Super_context.t
