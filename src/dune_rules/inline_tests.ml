@@ -77,14 +77,11 @@ include Sub_system.Register_end_point (struct
           | Byte -> Memo.return [ mode, ".bc" ]
           | Javascript ->
             let+ js_of_ocaml = Jsoo_rules.jsoo_env ~dir in
-            let multiple_targets =
-              match js_of_ocaml.targets with
-              | Some targets -> List.length (Js_of_ocaml.Target.Set.to_list targets) > 1
-              | None -> false
-            in
-            if multiple_targets
-            then [ mode, Js_of_ocaml.Ext.exe; mode, Js_of_ocaml.Ext.wasm_exe ]
-            else [ mode, Js_of_ocaml.Ext.exe ])
+            List.map
+              (match js_of_ocaml.submodes with
+               | Some m -> Js_of_ocaml.Submode.Set.to_list m
+               | None -> [ JS ])
+              ~f:(fun submode -> mode, Js_of_ocaml.Ext.exe ~submode))
       in
       List.flatten l
     ;;
@@ -327,12 +324,6 @@ include Sub_system.Register_end_point (struct
         List.concat l
       in
       let source_files = List.concat_map source_modules ~f:Module.sources in
-      let* _jsoo_targets =
-        let+ js_of_ocaml = Jsoo_rules.jsoo_env ~dir in
-        match js_of_ocaml.targets with
-        | Some m -> Js_of_ocaml.Target.Set.to_list m
-        | None -> [ JS ]
-      in
       let* confs = configurations ~dir info.modes in
       Memo.parallel_iter confs ~f:(fun ((mode : Mode_conf.t), ext) ->
         let partition_file =

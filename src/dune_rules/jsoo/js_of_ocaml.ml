@@ -1,21 +1,6 @@
 open Import
 open Dune_lang.Decoder
 
-module Ext = struct
-  type t = string
-
-  let exe = ".bc.js"
-  let wasm_exe = ".bc.wasm.js"
-  let wasm = ".bc.wasm"
-  let cmo = ".cmo.js"
-  let cma = ".cma.js"
-  let wasm_cmo = ".cmo.wasm"
-  let wasm_cma = ".cma.wasm"
-  let runtime = ".bc.runtime.js"
-  let wasm_runtime = ".bc.runtime.wasm"
-  let wasm_dir = ".bc.assets"
-end
-
 let field_oslu name = Ordered_set_lang.Unexpanded.field name
 
 module Flags = struct
@@ -165,7 +150,7 @@ module Compilation_mode = struct
   ;;
 end
 
-module Target = struct
+module Submode = struct
   type t =
     | JS
     | Wasm
@@ -181,8 +166,8 @@ module Target = struct
         (repeat1 (enum [ "js", JS; "wasm", Wasm ]))
         ~f:(fun l ->
           List.fold_left
-            ~f:(fun t target ->
-              match target with
+            ~f:(fun t submode ->
+              match submode with
               | JS -> { t with js = true }
               | Wasm -> { t with wasm = true })
             ~init:{ js = false; wasm = false }
@@ -198,10 +183,26 @@ module Target = struct
   end
 end
 
+module Ext = struct
+  type t = string
+
+  let select ~submode js wasm =
+    match submode with
+    | Submode.JS -> js
+    | Wasm -> wasm
+  ;;
+
+  let exe ~submode = select ~submode ".bc.js" ".bc.wasm.js"
+  let cmo ~submode = select ~submode ".cmo.js" ".wasmo"
+  let cma ~submode = select ~submode ".cma.js" ".wasma"
+  let runtime ~submode = select ~submode ".bc.runtime.js" ".bc.runtime.wasma"
+  let wasm_dir = ".bc.wasm.assets"
+end
+
 module Env = struct
   type 'a t =
     { compilation_mode : Compilation_mode.t option
-    ; targets : Target.Set.t option
+    ; submodes : Submode.Set.t option
     ; runtest_alias : Alias.Name.t option
     ; flags : 'a Flags.t
     }
@@ -209,30 +210,30 @@ module Env = struct
   let decode =
     fields
     @@ let+ compilation_mode = field_o "compilation_mode" Compilation_mode.decode
-       and+ targets =
+       and+ submodes =
          field_o
            "targets"
-           (Dune_lang.Syntax.since Stanza.syntax (3, 11) >>> Target.Set.decode)
+           (Dune_lang.Syntax.since Stanza.syntax (3, 11) >>> Submode.Set.decode)
        and+ runtest_alias = field_o "runtest_alias" Dune_lang.Alias.decode
        and+ flags = Flags.decode in
        Option.iter ~f:Alias.register_as_standard runtest_alias;
-       { compilation_mode; targets; runtest_alias; flags }
+       { compilation_mode; submodes; runtest_alias; flags }
   ;;
 
-  let equal { compilation_mode; targets; runtest_alias; flags } t =
+  let equal { compilation_mode; submodes; runtest_alias; flags } t =
     Option.equal Compilation_mode.equal compilation_mode t.compilation_mode
-    && Option.equal Target.Set.equal targets t.targets
+    && Option.equal Submode.Set.equal submodes t.submodes
     && Option.equal Alias.Name.equal runtest_alias t.runtest_alias
     && Flags.equal Ordered_set_lang.Unexpanded.equal flags t.flags
   ;;
 
-  let map ~f { compilation_mode; targets; runtest_alias; flags } =
-    { compilation_mode; targets; runtest_alias; flags = Flags.map ~f flags }
+  let map ~f { compilation_mode; submodes; runtest_alias; flags } =
+    { compilation_mode; submodes; runtest_alias; flags = Flags.map ~f flags }
   ;;
 
   let empty =
     { compilation_mode = None
-    ; targets = None
+    ; submodes = None
     ; runtest_alias = None
     ; flags = Flags.standard
     }
@@ -240,7 +241,7 @@ module Env = struct
 
   let default ~profile =
     { compilation_mode = None
-    ; targets = None
+    ; submodes = None
     ; runtest_alias = None
     ; flags = Flags.default ~profile
     }

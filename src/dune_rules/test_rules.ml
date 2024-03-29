@@ -15,14 +15,11 @@ let configurations ~dir modes =
           Memo.return []
         | Other { kind = Js; _ } ->
           let+ js_of_ocaml = Jsoo_rules.jsoo_env ~dir in
-          let multiple_targets =
-            match js_of_ocaml.targets with
-            | Some targets -> List.length (Js_of_ocaml.Target.Set.to_list targets) > 1
-            | None -> false
-          in
-          if multiple_targets
-          then [ `js, Js_of_ocaml.Ext.exe; `js, Js_of_ocaml.Ext.wasm_exe ]
-          else [ `js, Js_of_ocaml.Ext.exe ])
+          List.map
+            (match js_of_ocaml.submodes with
+             | Some m -> Js_of_ocaml.Submode.Set.to_list m
+             | None -> [ JS ])
+            ~f:(fun submode -> `js, Js_of_ocaml.Ext.exe ~submode))
   in
   List.flatten l
 ;;

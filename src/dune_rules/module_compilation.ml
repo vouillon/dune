@@ -313,16 +313,16 @@ let build_module ?(force_write_cmi = false) ?(precompiled_cmi = false) cctx m =
       | Some src ->
         Compilation_context.js_of_ocaml cctx
         |> Memo.Option.iter ~f:(fun in_context ->
-          (* Build *.cmo.js / *.cmo.wat *)
+          (* Build *.cmo.js / *.wasmo *)
           let sctx = Compilation_context.super_context cctx in
           let dir = Compilation_context.dir cctx in
-          Jsoo_rules.iter_compilation_targets ~f:(fun ctarget ->
+          Jsoo_rules.iter_submodes ~f:(fun submode ->
             let action_with_targets =
               Jsoo_rules.build_cm
                 sctx
                 ~dir
                 ~in_context
-                ~ctarget
+                ~submode
                 ~src:(Path.build src)
                 ~obj_dir
                 ~config:None

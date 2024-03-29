@@ -1,20 +1,5 @@
 open Import
 
-module Ext : sig
-  type t = string
-
-  val exe : t
-  val wasm_exe : t
-  val wasm : t
-  val cmo : t
-  val wasm_cmo : t
-  val cma : t
-  val wasm_cma : t
-  val runtime : t
-  val wasm_runtime : t
-  val wasm_dir : t
-end
-
 module Flags : sig
   type 'flags t =
     { build_runtime : 'flags
@@ -72,12 +57,12 @@ module Compilation_mode : sig
     | Separate_compilation
 end
 
-module Target : sig
+module Submode : sig
   type t =
     | JS
     | Wasm
 
-  type target := t
+  type submode := t
 
   module Set : sig
     type t =
@@ -85,14 +70,24 @@ module Target : sig
       ; wasm : bool
       }
 
-    val to_list : t -> target list
+    val to_list : t -> submode list
   end
+end
+
+module Ext : sig
+  type t = string
+
+  val exe : submode:Submode.t -> t
+  val cmo : submode:Submode.t -> t
+  val cma : submode:Submode.t -> t
+  val runtime : submode:Submode.t -> t
+  val wasm_dir : t
 end
 
 module Env : sig
   type 'a t =
     { compilation_mode : Compilation_mode.t option
-    ; targets : Target.Set.t option
+    ; submodes : Submode.Set.t option
     ; runtest_alias : Alias.Name.t option
     ; flags : 'a Flags.t
     }

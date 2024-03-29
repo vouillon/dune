@@ -42,4 +42,8 @@ module DB : sig
   val get : dir:Path.Build.t -> t Memo.t
 end
 
-val directory_targets : t -> dir:Path.Build.t -> Loc.t Path.Build.Map.t Memo.t
+val directory_targets
+  :  t
+  -> jsoo_env:(dir:Path.Build.t -> string list Action_builder.t Js_of_ocaml.Env.t Memo.t)
+  -> dir:Path.Build.t
+  -> Loc.t Path.Build.Map.t Memo.t

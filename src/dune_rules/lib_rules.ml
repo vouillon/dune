@@ -481,17 +481,17 @@ let setup_build_archives (lib : Library.t) ~top_sorted_modules ~cctx ~expander ~
     iter_modes_concurrently modes.ocaml ~f:(fun mode ->
       build_lib lib ~native_archives ~dir ~sctx ~expander ~flags ~mode ~cm_files)
   and* () =
-    (* Build *.cma.js *)
+    (* Build *.cma.js / *.wasma *)
     Memo.when_ modes.ocaml.byte (fun () ->
       let src = Library.archive lib ~dir ~ext:(Mode.compiled_lib_ext Mode.Byte) in
-      Jsoo_rules.iter_compilation_targets ~f:(fun ctarget ->
+      Jsoo_rules.iter_submodes ~f:(fun submode ->
         let action_with_targets =
           List.map Jsoo_rules.Config.all ~f:(fun config ->
             Jsoo_rules.build_cm
               sctx
               ~dir
               ~in_context:js_of_ocaml
-              ~ctarget
+              ~submode
               ~config:(Some config)
               ~src:(Path.build src)
               ~obj_dir)
