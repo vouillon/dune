@@ -227,6 +227,7 @@ let js_of_ocaml_rule
   ~spec
   ~target
   ~other_targets
+  ~directory_targets
   =
   let open Action_builder.O in
   let jsoo =
@@ -261,6 +262,7 @@ let js_of_ocaml_rule
     ; spec
     ; Hidden_targets other_targets
     ]
+|>  Action_builder.With_targets.add_directories ~directory_targets
 ;;
 
 let jsoo_runtime_files = List.concat_map ~f:(fun t -> Lib_info.jsoo_runtime (Lib.info t))
@@ -304,6 +306,7 @@ let standalone_runtime_rule
     ~flags
     ~target
     ~other_targets:[]
+    ~directory_targets:[]
     ~spec
     ~config:(Some config)
 ;;
@@ -343,6 +346,7 @@ let exe_rule
     ~spec
     ~target
     ~other_targets
+    ~directory_targets:[]
     ~flags
     ~config:None
 ;;
@@ -383,7 +387,7 @@ let link_rule
   cc
   ~runtime
   ~target
-  ~other_targets
+  ~directory_targets
   ~obj_dir
   cm
   ~flags
@@ -476,7 +480,8 @@ let link_rule
     ~dir
     ~spec
     ~target
-    ~other_targets
+    ~other_targets:[]
+    ~directory_targets
     ~flags
     ~config:None
 ;;
@@ -493,6 +498,7 @@ let build_cm' sctx ~dir ~in_context ~ctarget ~src ~target ~config =
     ~spec
     ~target
     ~other_targets:[]
+    ~directory_targets:[]
     ~config
 ;;
 
@@ -645,7 +651,7 @@ let build_exe
           cc
           ~runtime:standalone_runtime
           ~target
-          ~other_targets:[]
+          ~directory_targets:[]
           ~obj_dir
           top_sorted_modules
           ~flags
@@ -681,7 +687,7 @@ let build_exe
           cc
           ~runtime:standalone_runtime
           ~target
-          ~other_targets:[ Path.Build.set_extension src ~ext:Js_of_ocaml.Ext.wasm ]
+          ~directory_targets:[ Path.Build.set_extension src ~ext:Js_of_ocaml.Ext.wasm_dir ]
           ~obj_dir
           top_sorted_modules
           ~flags
