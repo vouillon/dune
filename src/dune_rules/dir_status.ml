@@ -149,18 +149,17 @@ let jsoo_wasm_enabled
 let directory_targets_of_executables
   ~jsoo_submodes
   ~dir
-  { Executables.names
-  ; modes
-  ; enabled_if
-  ; buildable = { loc; js_of_ocaml = { submodes; _ }; _ }
-  ; _
-  }
+  { Executables.names; modes; enabled_if; buildable; _ }
   =
   let* directory_targets =
-    let* wasm_enabled = jsoo_wasm_enabled ~jsoo_submodes ~dir ~submodes in
-    let* scope = Scope.DB.find_by_dir dir in
-    let project = Scope.project scope in
-    let explicit_js_mode = Dune_project.explicit_js_mode project in
+    let* wasm_enabled =
+      jsoo_wasm_enabled ~jsoo_submodes ~dir ~submodes:buildable.js_of_ocaml.submodes
+    in
+    let* explicit_js_mode =
+      let+ scope = Scope.DB.find_by_dir dir in
+      let project = Scope.project scope in
+      Dune_project.explicit_js_mode project
+    in
     if Executables.Link_mode.(
          Map.mem modes js || ((not explicit_js_mode) && Map.mem modes byte))
        && wasm_enabled
@@ -168,13 +167,9 @@ let directory_targets_of_executables
       Memo.List.fold_left
         (Nonempty_list.to_list names)
         ~init:Path.Build.Map.empty
-        ~f:(fun acc name ->
-          let dir_target =
-            Path.Build.set_extension
-              (Path.Build.relative dir (snd name ^ ".bc-for-jsoo"))
-              ~ext:Js_of_ocaml.Ext.wasm_dir
-          in
-          Path.Build.Map.set acc dir_target loc |> Memo.return)
+        ~f:(fun acc (_, name) ->
+          let dir_target = Path.Build.relative dir (name ^ Js_of_ocaml.Ext.wasm_dir) in
+          Path.Build.Map.set acc dir_target buildable.loc |> Memo.return)
     else Memo.return Path.Build.Map.empty
   in
   when_enabled ~dir ~enabled_if directory_targets
@@ -187,25 +182,26 @@ let directory_targets_of_library
   =
   let* directory_targets =
     match Sub_system_name.Map.find sub_systems Inline_tests_info.Tests.name with
-    | Some (Inline_tests_info.Tests.T { modes; loc; enabled_if; _ }) ->
+    | Some (Inline_tests_info.Tests.T { modes; loc; enabled_if; _ })
+      when Inline_tests_info.Mode_conf.Set.mem modes Javascript ->
       let* directory_targets =
         let+ wasm_enabled =
           jsoo_wasm_enabled ~jsoo_submodes ~dir ~submodes:buildable.js_of_ocaml.submodes
         in
-        if Inline_tests_info.Mode_conf.Set.mem modes Javascript && wasm_enabled
+        if wasm_enabled
         then (
           let lib_name = snd name in
-          let inline_test_name =
-            sprintf "%s.inline-tests" (Lib_name.Local.to_string lib_name)
+          let inline_test_dir =
+            let inline_test_name =
+              sprintf "%s.inline-tests" (Lib_name.Local.to_string lib_name)
+            in
+            Path.Build.relative dir ("." ^ inline_test_name)
           in
-          let inline_test_dir = Path.Build.relative dir ("." ^ inline_test_name) in
           let name =
             sprintf "inline_test_runner_%s" (Lib_name.Local.to_string lib_name)
           in
           let dir_target =
-            Path.Build.set_extension
-              (Path.Build.relative inline_test_dir (name ^ ".bc-for-jsoo"))
-              ~ext:Js_of_ocaml.Ext.wasm_dir
+            Path.Build.relative inline_test_dir (name ^ Js_of_ocaml.Ext.wasm_dir)
           in
           Path.Build.Map.singleton dir_target loc)
         else Path.Build.Map.empty
@@ -220,13 +216,13 @@ let extract_directory_targets ~jsoo_submodes ~dir stanzas =
   Memo.parallel_map stanzas ~f:(fun stanza ->
     match Stanza.repr stanza with
     | Rule_conf.T rule -> directory_targets_of_rule ~dir rule
+    | Executables.T exes | Tests.T { exes; _ } ->
+      directory_targets_of_executables ~jsoo_submodes ~dir exes
+    | Library.T lib -> directory_targets_of_library ~jsoo_submodes ~dir lib
     | Coq_stanza.Theory.T m ->
       (* It's unfortunate that we need to pull in the coq rules here. But
          we don't have a generic mechanism for this yet. *)
       Coq_doc.coqdoc_directory_targets ~dir m
-    | Executables.T exes | Tests.T { exes; _ } ->
-      directory_targets_of_executables ~jsoo_submodes ~dir exes
-    | Library.T lib -> directory_targets_of_library ~jsoo_submodes ~dir lib
     | _ -> Memo.return Path.Build.Map.empty)
   >>| Path.Build.Map.union_all ~f:(fun path loc1 loc2 ->
     User_error.raise

@@ -195,7 +195,7 @@ let jsoo ~dir sctx =
     "js_of_ocaml"
 ;;
 
-let wasoo ~dir sctx =
+let wasmoo ~dir sctx =
   (* TODO add a hint when wasm_of_ocaml released on opam *)
   Super_context.resolve_program sctx ~dir ~loc:None "wasm_of_ocaml"
 ;;
@@ -232,7 +232,7 @@ let js_of_ocaml_rule
   let jsoo =
     match submode with
     | JS -> jsoo ~dir sctx
-    | Wasm -> wasoo ~dir sctx
+    | Wasm -> wasmoo ~dir sctx
   in
   let flags =
     let* flags = js_of_ocaml_flags sctx ~dir flags in
