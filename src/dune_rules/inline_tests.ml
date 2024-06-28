@@ -68,7 +68,7 @@ include Sub_system.Register_end_point (struct
     module Mode_conf = Inline_tests_info.Mode_conf
     module Info = Inline_tests_info.Tests
 
-    let configurations ~dir modes =
+    let configurations ~dir modes submodes =
       let open Memo.O in
       let+ l =
         Memo.sequential_map (Mode_conf.Set.to_list modes) ~f:(fun (mode : Mode_conf.t) ->
@@ -76,12 +76,8 @@ include Sub_system.Register_end_point (struct
           | Native | Best -> Memo.return [ mode, ".exe" ]
           | Byte -> Memo.return [ mode, ".bc" ]
           | Javascript ->
-            let+ js_of_ocaml = Jsoo_rules.jsoo_env ~dir in
-            List.map
-              (match js_of_ocaml.submodes with
-               | Some m -> Js_of_ocaml.Submode.Set.to_list m
-               | None -> [ JS ])
-              ~f:(fun submode -> mode, Js_of_ocaml.Ext.exe ~submode))
+            let+ submodes = Jsoo_rules.jsoo_submodes ~dir ~submodes in
+            List.map submodes ~f:(fun submode -> mode, Js_of_ocaml.Ext.exe ~submode))
       in
       List.flatten l
     ;;
@@ -324,7 +320,7 @@ include Sub_system.Register_end_point (struct
         List.concat l
       in
       let source_files = List.concat_map source_modules ~f:Module.sources in
-      let* confs = configurations ~dir info.modes in
+      let* confs = configurations ~dir info.modes lib.buildable.js_of_ocaml.submodes in
       Memo.parallel_iter confs ~f:(fun ((mode : Mode_conf.t), ext) ->
         let partition_file =
           Path.Build.relative inline_test_dir ("partitions-" ^ Mode_conf.to_string mode)

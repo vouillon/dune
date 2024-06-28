@@ -521,7 +521,10 @@ let gen_rules_regular_directory sctx ~src_dir ~components ~dir =
       let+ rules =
         let+ make_rules =
           let+ directory_targets =
-            Dir_status.directory_targets dir_status ~jsoo_env:Jsoo_rules.jsoo_env ~dir
+            Dir_status.directory_targets
+              dir_status
+              ~jsoo_submodes:Jsoo_rules.jsoo_submodes
+              ~dir
           in
           let allowed_subdirs =
             let automatic = Automatic_subdir.subdirs components in

@@ -29,34 +29,6 @@ module Flags : sig
   val dump : string list Action_builder.t t -> Dune_lang.t list Action_builder.t
 end
 
-module In_buildable : sig
-  type t =
-    { flags : Flags.Spec.t
-    ; javascript_files : string list
-    ; wasm_files : string list
-    }
-
-  val decode : t Dune_lang.Decoder.t
-  val default : t
-end
-
-module In_context : sig
-  type t =
-    { flags : Flags.Spec.t
-    ; javascript_files : Path.Build.t list
-    ; wasm_files : Path.Build.t list
-    }
-
-  val make : dir:Path.Build.t -> In_buildable.t -> t
-  val default : t
-end
-
-module Compilation_mode : sig
-  type t =
-    | Whole_program
-    | Separate_compilation
-end
-
 module Submode : sig
   type t =
     | JS
@@ -72,6 +44,36 @@ module Submode : sig
 
     val to_list : t -> submode list
   end
+end
+
+module In_buildable : sig
+  type t =
+    { flags : Flags.Spec.t
+    ; submodes : Submode.Set.t option
+    ; javascript_files : string list
+    ; wasm_files : string list
+    }
+
+  val decode : t Dune_lang.Decoder.t
+  val default : t
+end
+
+module In_context : sig
+  type t =
+    { flags : Flags.Spec.t
+    ; submodes : Submode.Set.t option
+    ; javascript_files : Path.Build.t list
+    ; wasm_files : Path.Build.t list
+    }
+
+  val make : dir:Path.Build.t -> In_buildable.t -> t
+  val default : t
+end
+
+module Compilation_mode : sig
+  type t =
+    | Whole_program
+    | Separate_compilation
 end
 
 module Ext : sig

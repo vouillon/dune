@@ -1,6 +1,6 @@
 open Import
 
-let configurations ~dir modes =
+let configurations ~dir modes submodes =
   let open Memo.O in
   let+ l =
     Memo.sequential_map
@@ -14,12 +14,8 @@ let configurations ~dir modes =
           (* We don't know how to run tests in these cases *)
           Memo.return []
         | Other { kind = Js; _ } ->
-          let+ js_of_ocaml = Jsoo_rules.jsoo_env ~dir in
-          List.map
-            (match js_of_ocaml.submodes with
-             | Some m -> Js_of_ocaml.Submode.Set.to_list m
-             | None -> [ JS ])
-            ~f:(fun submode -> `js, Js_of_ocaml.Ext.exe ~submode))
+          let+ submodes = Jsoo_rules.jsoo_submodes ~dir ~submodes in
+          List.map submodes ~f:(fun submode -> `js, Js_of_ocaml.Ext.exe ~submode))
   in
   List.flatten l
 ;;
@@ -42,7 +38,7 @@ let rules (t : Tests.t) ~sctx ~dir ~scope ~expander ~dir_contents =
   let* runtest_modes =
     if Dune_project.dune_version (Scope.project scope) < (3, 0)
     then Memo.return [ `exe, ".exe" ]
-    else configurations ~dir t.exes.modes
+    else configurations ~dir t.exes.modes t.exes.buildable.js_of_ocaml.submodes
   in
   let* () =
     Memo.parallel_iter (Nonempty_list.to_list t.exes.names) ~f:(fun (loc, s) ->

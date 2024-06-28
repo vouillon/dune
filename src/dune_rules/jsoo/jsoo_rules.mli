@@ -41,6 +41,12 @@ val setup_separate_compilation_rules : Super_context.t -> string list -> unit Me
 val runner : string
 val js_of_ocaml_runtest_alias : dir:Path.Build.t -> Alias.Name.t Memo.t
 val jsoo_env : dir:Path.Build.t -> string list Action_builder.t Js_of_ocaml.Env.t Memo.t
+
+val jsoo_submodes
+  :  dir:Import.Path.Build.t
+  -> submodes:Js_of_ocaml.Submode.Set.t option
+  -> Js_of_ocaml.Submode.t list Memo.t
+
 val iter_submodes : f:(Js_of_ocaml.Submode.t -> unit Memo.t) -> unit Memo.t
 
 val js_of_ocaml_compilation_mode

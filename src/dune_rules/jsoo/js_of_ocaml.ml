@@ -78,78 +78,6 @@ module Flags = struct
   ;;
 end
 
-module In_buildable = struct
-  type t =
-    { flags : Ordered_set_lang.Unexpanded.t Flags.t
-    ; javascript_files : string list
-    ; wasm_files : string list
-    }
-
-  let decode =
-    let* syntax_version = Dune_lang.Syntax.get_exn Stanza.syntax in
-    if syntax_version < (3, 0)
-    then
-      fields
-        (let+ flags = Ordered_set_lang.Unexpanded.field "flags"
-         and+ javascript_files = field "javascript_files" (repeat string) ~default:[] in
-         { flags =
-             { build_runtime = Ordered_set_lang.Unexpanded.standard
-             ; compile = flags
-             ; link = flags (* we set link as well to preserve the old semantic *)
-             }
-         ; javascript_files
-         ; wasm_files = []
-         })
-    else
-      fields
-        (let+ flags = Flags.decode
-         and+ javascript_files = field "javascript_files" (repeat string) ~default:[]
-         and+ wasm_files =
-           field
-             "wasm_files"
-             (Dune_lang.Syntax.since Stanza.syntax (3, 11) >>> repeat string)
-             ~default:[]
-         in
-         { flags; javascript_files; wasm_files })
-  ;;
-
-  let default = { flags = Flags.standard; javascript_files = []; wasm_files = [] }
-end
-
-module In_context = struct
-  type t =
-    { flags : Ordered_set_lang.Unexpanded.t Flags.t
-    ; javascript_files : Path.Build.t list
-    ; wasm_files : Path.Build.t list
-    }
-
-  let make ~(dir : Path.Build.t) (x : In_buildable.t) =
-    { flags = x.flags
-    ; javascript_files =
-        List.map ~f:(fun name -> Path.Build.relative dir name) x.javascript_files
-    ; wasm_files = List.map ~f:(fun name -> Path.Build.relative dir name) x.wasm_files
-    }
-  ;;
-
-  let default = { flags = Flags.standard; javascript_files = []; wasm_files = [] }
-end
-
-module Compilation_mode = struct
-  type t =
-    | Whole_program
-    | Separate_compilation
-
-  let decode = enum [ "whole_program", Whole_program; "separate", Separate_compilation ]
-
-  let equal x y =
-    match x, y with
-    | Separate_compilation, Separate_compilation -> true
-    | Whole_program, Whole_program -> true
-    | Separate_compilation, _ -> false
-    | Whole_program, _ -> false
-  ;;
-end
-
 module Submode = struct
   type t =
     | JS
@@ -181,6 +109,90 @@ module Submode = struct
       if x.js then JS :: l else l
     ;;
   end
+end
+
+module In_buildable = struct
+  type t =
+    { flags : Ordered_set_lang.Unexpanded.t Flags.t
+    ; submodes : Submode.Set.t option
+    ; javascript_files : string list
+    ; wasm_files : string list
+    }
+
+  let decode =
+    let* syntax_version = Dune_lang.Syntax.get_exn Stanza.syntax in
+    if syntax_version < (3, 0)
+    then
+      fields
+        (let+ flags = Ordered_set_lang.Unexpanded.field "flags"
+         and+ javascript_files = field "javascript_files" (repeat string) ~default:[] in
+         { flags =
+             { build_runtime = Ordered_set_lang.Unexpanded.standard
+             ; compile = flags
+             ; link = flags (* we set link as well to preserve the old semantic *)
+             }
+         ; submodes = None
+         ; javascript_files
+         ; wasm_files = []
+         })
+    else
+      fields
+        (let+ flags = Flags.decode
+         and+ submodes =
+           field_o
+             "targets"
+             (Dune_lang.Syntax.since Stanza.syntax (3, 11) >>> Submode.Set.decode)
+         and+ javascript_files = field "javascript_files" (repeat string) ~default:[]
+         and+ wasm_files =
+           field
+             "wasm_files"
+             (Dune_lang.Syntax.since Stanza.syntax (3, 11) >>> repeat string)
+             ~default:[]
+         in
+         { flags; submodes; javascript_files; wasm_files })
+  ;;
+
+  let default =
+    { flags = Flags.standard; submodes = None; javascript_files = []; wasm_files = [] }
+  ;;
+end
+
+module In_context = struct
+  type t =
+    { flags : Ordered_set_lang.Unexpanded.t Flags.t
+    ; submodes : Submode.Set.t option
+    ; javascript_files : Path.Build.t list
+    ; wasm_files : Path.Build.t list
+    }
+
+  let make ~(dir : Path.Build.t) (x : In_buildable.t) =
+    { flags = x.flags
+    ; submodes = x.submodes
+    ; javascript_files =
+        List.map ~f:(fun name -> Path.Build.relative dir name) x.javascript_files
+    ; wasm_files = List.map ~f:(fun name -> Path.Build.relative dir name) x.wasm_files
+    }
+  ;;
+
+  let default =
+    { flags = Flags.standard; submodes = None; javascript_files = []; wasm_files = [] }
+  ;;
+end
+
+module Compilation_mode = struct
+  type t =
+    | Whole_program
+    | Separate_compilation
+
+  let decode = enum [ "whole_program", Whole_program; "separate", Separate_compilation ]
+
+  let equal x y =
+    match x, y with
+    | Separate_compilation, Separate_compilation -> true
+    | Whole_program, Whole_program -> true
+    | Separate_compilation, _ -> false
+    | Whole_program, _ -> false
+  ;;
 end
 
 module Ext = struct

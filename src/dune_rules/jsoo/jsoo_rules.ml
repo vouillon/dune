@@ -506,6 +506,7 @@ let setup_separate_compilation_rules sctx components =
            let dir = in_build_dir build_context ~config [ lib_name ] in
            let in_context =
              { Js_of_ocaml.In_context.flags = Js_of_ocaml.Flags.standard
+             ; submodes = None
              ; javascript_files = []
              ; wasm_files = []
              }
@@ -539,6 +540,19 @@ let js_of_ocaml_compilation_mode t ~dir =
     else Whole_program
 ;;
 
+let jsoo_submodes ~dir ~submodes =
+  let+ submodes =
+    match submodes with
+    | Some _ -> Memo.return submodes
+    | None ->
+      let+ js_of_ocaml = jsoo_env ~dir in
+      js_of_ocaml.submodes
+  in
+  match submodes with
+  | Some m -> Js_of_ocaml.Submode.Set.to_list m
+  | None -> [ JS ]
+;;
+
 let build_exe
   cc
   ~loc
@@ -552,7 +566,9 @@ let build_exe
   =
   let sctx = Compilation_context.super_context cc in
   let dir = Compilation_context.dir cc in
-  let { Js_of_ocaml.In_context.javascript_files; wasm_files; flags } = in_context in
+  let { Js_of_ocaml.In_context.javascript_files; wasm_files; flags; submodes } =
+    in_context
+  in
   let mode : Rule.Mode.t =
     match promote with
     | None -> Standard
@@ -560,12 +576,7 @@ let build_exe
   in
   let open Memo.O in
   let* cmode = js_of_ocaml_compilation_mode sctx ~dir
-  and* submodes =
-    let+ js_of_ocaml = jsoo_env ~dir in
-    match js_of_ocaml.submodes with
-    | Some m -> Js_of_ocaml.Submode.Set.to_list m
-    | None -> [ JS ]
-  in
+  and* submodes = jsoo_submodes ~dir ~submodes in
   let* () =
     if List.mem ~equal:Poly.equal submodes Wasm
        && not (List.mem ~equal:Poly.equal submodes JS)
