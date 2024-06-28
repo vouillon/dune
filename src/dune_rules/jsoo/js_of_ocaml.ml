@@ -140,7 +140,7 @@ module In_buildable = struct
         (let+ flags = Flags.decode
          and+ submodes =
            field_o
-             "targets"
+             "submodes"
              (Dune_lang.Syntax.since Stanza.syntax (3, 11) >>> Submode.Set.decode)
          and+ javascript_files = field "javascript_files" (repeat string) ~default:[]
          and+ wasm_files =
@@ -224,7 +224,7 @@ module Env = struct
     @@ let+ compilation_mode = field_o "compilation_mode" Compilation_mode.decode
        and+ submodes =
          field_o
-           "targets"
+           "submodes"
            (Dune_lang.Syntax.since Stanza.syntax (3, 11) >>> Submode.Set.decode)
        and+ runtest_alias = field_o "runtest_alias" Dune_lang.Alias.decode
        and+ flags = Flags.decode in
