@@ -17,31 +17,41 @@ let rules (t : Tests.t) ~sctx ~dir ~scope ~expander ~dir_contents =
   let open Memo.O in
   let* runtest_modes =
     if Dune_project.dune_version (Scope.project scope) < (3, 0)
-    then Memo.return [ `exe, ".exe" ]
+    then Memo.return [ `exe ]
     else
+      let+ jsoo_enabled_modes =
+        Jsoo_rules.jsoo_enabled_modes
+          ~expander
+          ~dir
+          ~in_context:(Js_of_ocaml.In_context.make ~dir t.exes.buildable.js_of_ocaml)
+      in
       Executables.Link_mode.Map.to_list t.exes.modes
-      |> Memo.sequential_map ~f:(fun ((mode : Executables.Link_mode.t), _) ->
+      |> List.filter_map ~f:(fun ((mode : Executables.Link_mode.t), _) ->
         match mode with
-        | Byte_complete | Other { kind = Exe; mode = Native | Best } ->
-          Memo.return [ `exe, ".exe" ]
-        | Other { kind = Exe; mode = Byte } -> Memo.return [ `bc, ".bc" ]
-        | Other { kind = Js; _ } ->
-          let+ submodes =
-            Jsoo_rules.jsoo_submodes ~dir ~submodes:t.exes.buildable.js_of_ocaml.submodes
-          in
-          List.map submodes ~f:(fun submode -> `js, Js_of_ocaml.Ext.exe ~submode)
+        | Byte_complete -> Some `exe
+        | Other { kind = Exe; mode = Native | Best } -> Some `exe
+        | Other { kind = Exe; mode = Byte } -> Some `bc
         | Other { kind = C | Object | Shared_object | Plugin; _ } ->
           (* We don't know how to run tests in these cases *)
-          Memo.return [])
-      >>| List.flatten
-      >>| List.sort_uniq ~compare:Poly.compare
+          None
+        | Jsoo mode ->
+          if Js_of_ocaml.Mode.Pair.select ~mode jsoo_enabled_modes
+          then Some (`js mode)
+          else None)
+      |> List.sort_uniq ~compare:Poly.compare
   in
   let* () =
     Memo.parallel_iter (Nonempty_list.to_list t.exes.names) ~f:(fun (loc, s) ->
-      Memo.parallel_iter runtest_modes ~f:(fun (runtest_mode, ext) ->
+      Memo.parallel_iter runtest_modes ~f:(fun runtest_mode ->
+        let ext =
+          match runtest_mode with
+          | `js mode -> Js_of_ocaml.Ext.exe ~mode
+          | `bc -> ".bc"
+          | `exe -> ".exe"
+        in
         let custom_runner =
           match runtest_mode with
-          | `js -> Some Jsoo_rules.runner
+          | `js _ -> Some Jsoo_rules.runner
           | `bc | `exe -> None
         in
         let test_pform = Pform.Var Test in
@@ -66,7 +76,7 @@ let rules (t : Tests.t) ~sctx ~dir ~scope ~expander ~dir_contents =
         in
         let* runtest_alias =
           match runtest_mode with
-          | `js -> Jsoo_rules.js_of_ocaml_runtest_alias ~dir
+          | `js mode -> Jsoo_rules.js_of_ocaml_runtest_alias ~dir ~mode
           | `exe | `bc -> Memo.return Alias0.runtest
         in
         let deps =
