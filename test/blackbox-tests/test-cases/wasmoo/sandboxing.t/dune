@@ -1,0 +1,5 @@
+(library
+ (name inline_test)
+ (modules inline_test)
+ (inline_tests (modes wasm))
+ (preprocess (pps ppx_inline_test)))
